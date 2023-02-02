@@ -1,13 +1,25 @@
 import express from "express";
 import ProductsModel from "./model.js";
 import { Op } from "sequelize";
+import ReviewsModel from "../reviews/model.js";
+import ProductsCategoriesModel from "./productsCategoriesModel.js";
 
 const productsRouter = express.Router();
 
 productsRouter.post("/", async (req, res, next) => {
   try {
-    const { id } = await ProductsModel.create(req.body);
-    res.status(201).send({ id });
+    const { productId } = await ProductsModel.create(req.body);
+    if (req.body.categories) {
+      await ProductsCategoriesModel.bulkCreate(
+        req.body.categories.map((categorie) => {
+          return {
+            categorieId: categorie,
+            productId,
+          };
+        })
+      );
+    }
+    res.status(201).send({ id: productId });
   } catch (error) {
     next(error);
   }
@@ -91,6 +103,17 @@ productsRouter.delete("/:productId", async (req, res, next) => {
         )
       );
     }
+  } catch (error) {
+    next(error);
+  }
+});
+
+productsRouter.get("/:productId/reviews", async (req, res, next) => {
+  try {
+    const product = await ProductsModel.findByPk(req.params.productId, {
+      include: { model: ReviewsModel, attributes: ["rate", "comment"] },
+    });
+    res.status(204).send(product);
   } catch (error) {
     next(error);
   }
